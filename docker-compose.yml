@@ -1,0 +1,59 @@
+version: "2.1"
+services:
+  traefik:
+    image: traefik:v2.4
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    container_name: traefik
+    restart: always
+
+  home-assistant:
+    image: linuxserver/homeassistant
+    container_name: home-assistant
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - /home/ops/homeassist:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homeassist.rule=Host(`ha.geo.home`)
+      - traefik.http.routers.homeassist.entrypoints=web
+    restart: always
+
+  node-red:
+    image: nodered/node-red
+    container_name: node-red
+    volumes:
+     - /home/ops/nodered:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nodered.rule=Host(`red.geo.home`)
+      - traefik.http.routers.nodered.entrypoints=web
+    restart: always
+
+  mosquitto:
+    image: eclipse-mosquitto
+    container_name: eclipse-mosquitto
+    ports:
+      - 1883:1883
+      - 9001:9001
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - /home/ops/mosq/data:/mosquitto/data
+      - /home/ops/mosq/logs:/mosquitto/log
+    restart: always
+
+networks:
+  default:
+    external:
+      name: primary
